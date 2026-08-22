@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String           @id @default(cuid())
+  name                String
+  email               String           @unique
+  password            String
+  role                String           @default("PATIENT") // PATIENT, DOCTOR, ADMIN
+  phone               String?
+  googleRefreshToken  String?
+  doctorProfile       DoctorProfile?
+  appointmentsAsPatient Appointment[]  @relation("PatientAppointments")
+  slotHolds           SlotHold[]
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+}
+
+model DoctorProfile {
+  id             String          @id @default(cuid())
+  userId         String          @unique
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization String
+  bio            String?
+  slotDuration   Int             @default(30) // in minutes
+  workingDays    String          @default("1,2,3,4,5") // Mon-Fri: "1,2,3,4,5"
+  startHour      Int             @default(9) // 09:00
+  endHour        Int             @default(17) // 17:00
+  leaves         DoctorLeave[]
+  appointments   Appointment[]   @relation("DoctorAppointments")
+  slotHolds      SlotHold[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model DoctorLeave {
+  id        String        @id @default(cuid())
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  createdAt DateTime      @default(now())
+}
+
+model SlotHold {
+  id        String        @id @default(cuid())
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   User          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  slotStart DateTime
+  slotEnd   DateTime
+  expiresAt DateTime
+  createdAt DateTime      @default(now())
+
+  @@unique([doctorId, slotStart])
+  @@index([expiresAt])
+}
+
+model Appointment {
+  id                    String            @id @default(cuid())
+  doctorId              String
+  doctor                DoctorProfile     @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId             String
+  patient               User              @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  slotStart             DateTime
+  slotEnd               DateTime
+  status                String            @default("CONFIRMED") // CONFIRMED, COMPLETED, CANCELLED, CANCELLED_LEAVE, NO_SHOW
+  symptomsDuration      String?
+  symptomsSeverity      Int?
+  symptomsNotes         String?
+  symptomsTags          String?
+  urgencyLevel          String?           // Low, Medium, High
+  chiefComplaint        String?
+  suggestedQuestions    String?           // JSON string of string[]
+  clinicalNotes         String?
+  prescription          String?
+  patientSummary        String?
+  summaryStatus         String            @default("pending") // pending, completed, failed
+  summaryFailedReason   String?
+  rebookedFromId        String?
+  googleCalendarEventId String?
+  notificationJobs      NotificationJob[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@unique([doctorId, slotStart])
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([slotStart])
+}
+
+model NotificationJob {
+  id            String       @id @default(cuid())
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  type          String       // EMAIL_BOOKING, EMAIL_PRE_VISIT, EMAIL_POST_VISIT, EMAIL_MEDICATION, EMAIL_LEAVE_CANCEL, CALENDAR_SYNC, CALENDAR_DELETE
+  recipient     String
+  payload       String       // JSON payload
+  status        String       @default("PENDING") // PENDING, SENT, FAILED
+  attempts      Int          @default(0)
+  maxAttempts   Int          @default(3)
+  nextRetryAt   DateTime?
+  lastError     String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([status, nextRetryAt])
+}

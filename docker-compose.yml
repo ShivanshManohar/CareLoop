@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: careloop-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://careloop_user:careloop_pass@db:5432/careloop?schema=public
+      - NEXTAUTH_SECRET=careloop-super-secret-jwt-key-minimum-32-characters
+      - NEXTAUTH_URL=http://localhost:3000
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=gemini-2.0-flash
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - CRON_SECRET=careloop-cron-secure-token-123
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: careloop-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: careloop_user
+      POSTGRES_PASSWORD: careloop_pass
+      POSTGRES_DB: careloop
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careloop_user -d careloop"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
