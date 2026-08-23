@@ -1,4 +1,5 @@
 # CareLoop — AI-Powered Healthcare Appointment & Follow-up Manager
+(Hosted link - https://careloop-app-rust.vercel.app)
 
 > **CareLoop** is a production-ready healthcare management application designed for multi-specialty medical clinics. It bridges the gap between patient intake and doctor consultation using **Google Gemini 2.0 Flash** for structured pre-visit triage briefs and live-streamed post-visit summaries, backed by robust concurrency controls (slot-holds, DB-level unique constraints, transaction isolation), leave conflict resolution with one-click rebooking, and resilient notification retries via a `notification_jobs` background queue.
 
